@@ -1,0 +1,25 @@
+modLoader="javafml"
+loaderVersion="[47,)"  # Минимальная версия Forge для Minecraft 1.20.1
+license="MIT"
+issueTrackerURL="https://github.com/yourusername/custommobsforge/issues"
+
+[[mods]]
+modId="custommobsforge_common"
+version="1.0.0"
+displayName="CustomMobsForge Common"
+description="Common module for CustomMobsForge mod."
+authors="YourName"
+
+[[dependencies.custommobsforge_common]]
+modId="forge"
+mandatory=true
+versionRange="[47,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.custommobsforge_common]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1]"
+ordering="NONE"
+side="BOTH"

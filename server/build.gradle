@@ -1,0 +1,53 @@
+plugins {
+    id 'java'
+    id 'net.minecraftforge.gradle'
+    id 'org.parchmentmc.librarian.forgegradle' version '1.+'
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
+    runs {
+        server {
+            workingDirectory project.file('run')
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                custommobsforge_common {
+                    source project(':common').sourceSets.main
+                }
+                custommobsforge_server {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:1.20.1-47.4.0"
+    implementation project(':common')
+    implementation 'org.yaml:snakeyaml:2.0' // Для парсинга YAML
+    implementation 'org.json:json:20230227'
+    implementation fg.deobf("mod.azure.azurelib:azurelib-forge-1.20.1:1.0.34")
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'com.custommobsforge.custommobsforge.server.ServerCustomMobsForge'
+    }
+}
+
+task printDependencies {
+    doLast {
+        println "Dependencies for server: ${configurations.compileClasspath.collect { it.name }}"
+    }
+}
