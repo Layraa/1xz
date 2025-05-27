@@ -6,6 +6,7 @@ import com.custommobsforge.custommobsforge.common.network.NetworkManager;
 import com.custommobsforge.custommobsforge.common.network.packet.AnimationSyncPacket;
 import com.custommobsforge.custommobsforge.common.network.packet.MobDataPacket;
 import com.custommobsforge.custommobsforge.common.config.ClientMobDataCache;
+import mod.azure.azurelib.core.animatable.model.CoreGeoBone;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -31,6 +32,10 @@ import mod.azure.azurelib.core.animation.Animation;
 import mod.azure.azurelib.core.animation.RawAnimation;
 import mod.azure.azurelib.core.object.PlayState;
 import mod.azure.azurelib.util.AzureLibUtil;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 public class CustomMobEntity extends PathfinderMob implements GeoEntity {
 
@@ -97,6 +102,107 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
         return mobData;
     }
 
+    /**
+     * Проверяет, можно ли получить кости из сущности (для отладки)
+     */
+    /**
+     * Проверяет, можно ли получить кости из сущности (для отладки)
+     */
+    /**
+     * Проверяет, можно ли получить кости из сущности (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+     */
+    public boolean canProvideBones() {
+        List<String> bones = getAvailableBoneNames();
+        return !bones.isEmpty();
+    }
+
+    /**
+     * Принудительно обновляет кости в AnimationProcessor
+     */
+    public void forceUpdateBones() {
+        try {
+            var cache = this.getAnimatableInstanceCache();
+            if (cache == null) return;
+
+            var manager = cache.getManagerForId(this.getId());
+            if (manager == null) return;
+
+            var controllers = manager.getAnimationControllers();
+            if (controllers.isEmpty()) return;
+
+            mod.azure.azurelib.core.animation.AnimationController<?> controller = controllers.values().iterator().next();
+            if (controller == null) return;
+
+            // Принудительно вызываем обновление костей
+            // Находим метод process или любой метод который инициализирует кости
+            try {
+                var method = controller.getClass().getMethod("forceAnimationReset");
+                method.invoke(controller);
+            } catch (Exception e) {
+            }
+
+        } catch (Exception e) {
+        }
+    }
+
+    /**
+     * Получает список всех доступных костей (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+     */
+    public List<String> getAvailableBoneNames() {
+        List<String> boneNames = new ArrayList<>();
+        try {
+            var cache = this.getAnimatableInstanceCache();
+            if (cache == null) return boneNames;
+
+            var manager = cache.getManagerForId(this.getId());
+            if (manager == null) return boneNames;
+
+            var controllers = manager.getAnimationControllers();
+            if (controllers.isEmpty()) return boneNames;
+
+            mod.azure.azurelib.core.animation.AnimationController<?> controller = controllers.values().iterator().next();
+            if (controller == null) return boneNames;
+
+            // Пробуем получить BakedGeoModel
+            try {
+                var method = controller.getClass().getMethod("getCurrentModel");
+                Object currentModel = method.invoke(controller);
+                if (currentModel != null) {
+                    var getBakedModelMethod = currentModel.getClass().getMethod("getBakedModel");
+                    Object bakedModel = getBakedModelMethod.invoke(currentModel);
+
+                    if (bakedModel instanceof mod.azure.azurelib.core.animatable.model.CoreBakedGeoModel) {
+                        mod.azure.azurelib.core.animatable.model.CoreBakedGeoModel coreBakedModel =
+                                (mod.azure.azurelib.core.animatable.model.CoreBakedGeoModel) bakedModel;
+
+                        List<? extends mod.azure.azurelib.core.animatable.model.CoreGeoBone> bones = coreBakedModel.getBones();
+                        if (bones != null) {
+                            for (mod.azure.azurelib.core.animatable.model.CoreGeoBone bone : bones) {
+                                collectBoneNames(bone, boneNames);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // Ignore
+            }
+
+        } catch (Exception e) {
+            // Игнорируем ошибки
+        }
+        return boneNames;
+    }
+
+    private void collectBoneNames(mod.azure.azurelib.core.animatable.model.CoreGeoBone bone, List<String> boneNames) {
+        boneNames.add(bone.getName());
+        List<? extends mod.azure.azurelib.core.animatable.model.CoreGeoBone> children = bone.getChildBones();
+        if (children != null) {
+            for (mod.azure.azurelib.core.animatable.model.CoreGeoBone child : children) {
+                collectBoneNames(child, boneNames);
+            }
+        }
+    }
+
     public void setMobData(MobData mobData) {
         this.mobData = mobData;
 
@@ -139,6 +245,31 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
                 lastPlayedAnimation = actionKey;
                 lastAnimationTime = System.currentTimeMillis();
             }
+        }
+    }
+
+    public void forceInitializeModel() {
+        try {
+
+            var cache = this.getAnimatableInstanceCache();
+            if (cache == null) return;
+
+            var manager = cache.getManagerForId(this.getId());
+            if (manager == null) return;
+
+            // Принудительно запускаем первый тик анимации
+            if (manager.isFirstTick()) {
+
+                // Запускаем любую анимацию чтобы инициализировать систему
+                if (this.getMobData() != null && this.getMobData().getAnimations() != null) {
+                    var idleAnim = this.getMobData().getAnimations().get("IDLE");
+                    if (idleAnim != null) {
+                        this.setAnimation(idleAnim.getAnimationName(), true, 1.0f);
+                    }
+                }
+            }
+
+        } catch (Exception e) {
         }
     }
 
