@@ -31,6 +31,9 @@ public class DebugCommands {
                                                         EntityArgument.getEntity(context, "target")))
                                         )
                                 )
+                                .then(Commands.literal("bones")
+                                        .executes(context -> debugNearestMobBones(context.getSource()))
+                                )
                         )
         );
     }
@@ -50,6 +53,23 @@ public class DebugCommands {
 
         CustomMobEntity nearestMob = nearbyMobs.get(0);
         return debugMob(source, nearestMob);
+    }
+
+    private static int debugNearestMobBones(CommandSourceStack source) {
+        Vec3 pos = source.getPosition();
+
+        List<CustomMobEntity> nearbyMobs = source.getLevel().getEntitiesOfClass(
+                CustomMobEntity.class,
+                new AABB(pos.add(-10, -10, -10), pos.add(10, 10, 10))
+        );
+
+        if (nearbyMobs.isEmpty()) {
+            source.sendFailure(Component.literal("No custom mobs found nearby"));
+            return 0;
+        }
+
+        CustomMobEntity nearestMob = nearbyMobs.get(0);
+        return debugMobBones(source, nearestMob);
     }
 
     private static int debugSpecificMob(CommandSourceStack source, Entity entity) {
@@ -91,6 +111,32 @@ public class DebugCommands {
             }
             debug.append("\n");
         });
+
+        // Проверяем возможность получения костей
+
+        LogHelper.info(debug.toString());
+        source.sendSuccess(() -> Component.literal(debug.toString()), false);
+
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int debugMobBones(CommandSourceStack source, CustomMobEntity mob) {
+        LogHelper.info("=== BONE DEBUG FOR MOB {} ===", mob.getId());
+
+        StringBuilder debug = new StringBuilder();
+        debug.append("=== BONE DEBUG ===\n");
+        debug.append("Entity ID: ").append(mob.getId()).append("\n");
+
+        List<String> boneNames = mob.getAvailableBoneNames();
+        debug.append("Available Bones (").append(boneNames.size()).append("):\n");
+
+        if (boneNames.isEmpty()) {
+            debug.append("  No bones found!\n");
+        } else {
+            for (String boneName : boneNames) {
+                debug.append("  - ").append(boneName).append("\n");
+            }
+        }
 
         LogHelper.info(debug.toString());
         source.sendSuccess(() -> Component.literal(debug.toString()), false);

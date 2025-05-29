@@ -21,6 +21,7 @@ import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
@@ -31,6 +32,12 @@ import mod.azure.azurelib.core.animation.Animation;
 import mod.azure.azurelib.core.animation.RawAnimation;
 import mod.azure.azurelib.core.object.PlayState;
 import mod.azure.azurelib.util.AzureLibUtil;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class CustomMobEntity extends PathfinderMob implements GeoEntity {
 
@@ -51,6 +58,12 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
     private long lastAnimationTime = 0;
     private static final long ANIMATION_COOLDOWN = 1000;
 
+    // === НОВАЯ СИСТЕМА СИНХРОНИЗАЦИИ КОСТЕЙ ===
+    private Map<String, Vec3> lastKnownBonePositions = new ConcurrentHashMap<>();
+    private long lastBoneUpdateTime = 0;
+    private boolean isAttacking = false;
+    private static final long BONE_DATA_TIMEOUT = 200; // 200мс
+
     public CustomMobEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
         super(entityType, level);
     }
@@ -65,9 +78,121 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
                 .add(Attributes.FOLLOW_RANGE, 16.0D);
     }
 
+    // === МЕТОДЫ СИНХРОНИЗАЦИИ КОСТЕЙ ===
+
+    /**
+     * Обновляет позиции костей с клиента (вызывается через пакет)
+     */
+    public void updateBonePositions(Map<String, Vec3> bonePositions, long timestamp) {
+        // Проверяем что данные не устарели (защита от лага)
+        if (timestamp > lastBoneUpdateTime) {
+            this.lastKnownBonePositions.putAll(bonePositions);
+            this.lastBoneUpdateTime = timestamp;
+
+            System.out.println("[BoneSync] Updated " + bonePositions.size() +
+                    " bone positions for entity " + this.getId());
+        }
+    }
+
+    /**
+     * Получает мировую позицию кости (основной метод для атак)
+     */
+    public Vec3 getBoneWorldPosition(String boneName) {
+        Vec3 position = lastKnownBonePositions.get(boneName);
+
+        if (position != null) {
+            // Проверяем актуальность данных
+            if (System.currentTimeMillis() - lastBoneUpdateTime < BONE_DATA_TIMEOUT) {
+                return position;
+            }
+        }
+
+        // Fallback к виртуальным костям если данные устарели
+        return getVirtualBonePosition(boneName);
+    }
+
+    /**
+     * Fallback система виртуальных костей
+     */
+    private Vec3 getVirtualBonePosition(String boneName) {
+        Vec3 basePos = this.position();
+        Vec3 lookDir = this.getLookAngle();
+        double height = this.getBbHeight();
+
+        switch (boneName.toLowerCase()) {
+            case "rightarm":
+            case "right_arm":
+                Vec3 rightDir = new Vec3(-lookDir.z, 0, lookDir.x).normalize();
+                return basePos.add(rightDir.x * 0.6, height * 0.8, rightDir.z * 0.6);
+
+            case "leftarm":
+            case "left_arm":
+                Vec3 leftDir = new Vec3(lookDir.z, 0, -lookDir.x).normalize();
+                return basePos.add(leftDir.x * 0.6, height * 0.8, leftDir.z * 0.6);
+
+            case "sword":
+            case "weapon":
+            case "greatsword":
+                return basePos.add(lookDir.x * 2.0, height * 0.8, lookDir.z * 2.0);
+
+            case "head":
+                return basePos.add(0, height * 0.9, 0);
+
+            case "body":
+            case "chest":
+                return basePos.add(0, height * 0.6, 0);
+
+            case "hurtbox":
+            default:
+                return basePos.add(0, height * 0.5, 0);
+        }
+    }
+
+    /**
+     * Включает синхронизацию костей (вызывается при начале атаки)
+     */
+    public void startAttack() {
+        this.isAttacking = true;
+        System.out.println("[BoneSync] Started attack mode for entity " + this.getId());
+    }
+
+    /**
+     * Отключает синхронизацию костей (вызывается при окончании атаки)
+     */
+    public void stopAttack() {
+        this.isAttacking = false;
+        this.lastKnownBonePositions.clear();
+        System.out.println("[BoneSync] Stopped attack mode for entity " + this.getId());
+    }
+
+    /**
+     * Проверяет, находится ли моб в режиме атаки
+     */
+    public boolean isAttacking() {
+        return isAttacking;
+    }
+
+    /**
+     * Получает список всех синхронизированных костей
+     */
+    public List<String> getAvailableBoneNames() {
+        List<String> boneNames = new ArrayList<>(lastKnownBonePositions.keySet());
+
+        // Добавляем виртуальные кости как fallback
+        if (!boneNames.contains("rightArm")) boneNames.add("rightArm");
+        if (!boneNames.contains("leftArm")) boneNames.add("leftArm");
+        if (!boneNames.contains("sword")) boneNames.add("sword");
+        if (!boneNames.contains("weapon")) boneNames.add("weapon");
+        if (!boneNames.contains("greatsword")) boneNames.add("greatsword");
+        if (!boneNames.contains("head")) boneNames.add("head");
+        if (!boneNames.contains("body")) boneNames.add("body");
+        if (!boneNames.contains("hurtbox")) boneNames.add("hurtbox");
+
+        return boneNames;
+    }
+
     public void clearTreeAnimation() {
         this.hasTreeAnimation = false;
-        // НЕ очищаем currentAnimation - просто сбрасываем флаг
         System.out.println("[CustomMobEntity] Cleared tree animation flag for entity " + this.getId());
     }
 
@@ -223,7 +348,6 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
         }
     }
 
-    // В методе tick() используем правильный метод для получения скорости:
     @Override
     public void tick() {
         super.tick();

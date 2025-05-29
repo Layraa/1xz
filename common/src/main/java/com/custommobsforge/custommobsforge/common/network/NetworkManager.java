@@ -55,6 +55,12 @@ public class NetworkManager {
                 SaveConfigPacket::decode,
                 SaveConfigPacket::handle);
 
+        // В методе registerPackets() добавьте:
+        INSTANCE.registerMessage(nextId(), BonePositionSyncPacket.class,
+                BonePositionSyncPacket::encode,
+                BonePositionSyncPacket::decode,
+                BonePositionSyncPacket::handle);
+
         System.out.println("[NetworkManager] Registered " + packetId + " network packets");
     }
 }
