@@ -21,6 +21,7 @@ import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
@@ -31,14 +32,29 @@ import mod.azure.azurelib.core.animation.Animation;
 import mod.azure.azurelib.core.animation.RawAnimation;
 import mod.azure.azurelib.core.object.PlayState;
 import mod.azure.azurelib.util.AzureLibUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class CustomMobEntity extends PathfinderMob implements GeoEntity {
+
+    // Общий логгер для common модуля
+    private static final Logger LOGGER = LogManager.getLogger("CustomMobsForge-Common");
 
     private static final EntityDataAccessor<String> MOB_ID =
             SynchedEntityData.defineId(CustomMobEntity.class, EntityDataSerializers.STRING);
 
     private MobData mobData;
     private final AnimatableInstanceCache cache = AzureLibUtil.createInstanceCache(this);
+
+    // НОВОЕ: Синхронизация состояния атаки с клиентом
+    private static final EntityDataAccessor<Boolean> IS_ATTACKING =
+            SynchedEntityData.defineId(CustomMobEntity.class, EntityDataSerializers.BOOLEAN);
 
     // Поля для AzureLib
     private String currentAnimation = "";
@@ -50,6 +66,15 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
     public boolean hasTreeAnimation = false;
     private long lastAnimationTime = 0;
     private static final long ANIMATION_COOLDOWN = 1000;
+
+    // === СИСТЕМА СИНХРОНИЗАЦИИ КОСТЕЙ ===
+    private Map<String, Vec3> lastKnownBonePositions = new ConcurrentHashMap<>();
+    private long lastBoneUpdateTime = 0;
+    private boolean isAttacking = false;
+    private static final long BONE_DATA_TIMEOUT = 200; // 200мс
+
+    // === ССЫЛКА НА СЕРВЕРНЫЙ МЕНЕДЖЕР (через Object чтобы избежать серверных импортов) ===
+    private Object serverBoneColliderManager; // Будет приведен к BoneColliderManager только на сервере
 
     public CustomMobEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
         super(entityType, level);
@@ -65,10 +90,167 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
                 .add(Attributes.FOLLOW_RANGE, 16.0D);
     }
 
+    // === МЕТОДЫ СИНХРОНИЗАЦИИ КОСТЕЙ ===
+
+    /**
+     * Обновляет позиции костей с клиента (вызывается через пакет)
+     */
+    public void updateBonePositions(Map<String, Vec3> bonePositions, long timestamp) {
+        if (timestamp > lastBoneUpdateTime) {
+            this.lastKnownBonePositions.putAll(bonePositions);
+            this.lastBoneUpdateTime = timestamp;
+
+            String side = this.level().isClientSide ? "CLIENT" : "SERVER";
+            LOGGER.info("[BoneSync-{}] Updated {} bone positions for entity {}",
+                    side, bonePositions.size(), this.getId());
+        }
+    }
+
+    /**
+     * Получает мировую позицию кости (основной метод для атак)
+     */
+    public Vec3 getBoneWorldPosition(String boneName) {
+        Vec3 position = lastKnownBonePositions.get(boneName);
+
+        if (position != null) {
+            if (System.currentTimeMillis() - lastBoneUpdateTime < BONE_DATA_TIMEOUT) {
+                return position;
+            }
+        }
+
+        return getVirtualBonePosition(boneName);
+    }
+
+    public long getLastBoneUpdateTime() {
+        return lastBoneUpdateTime;
+    }
+
+    /**
+     * Fallback система виртуальных костей
+     */
+    private Vec3 getVirtualBonePosition(String boneName) {
+        Vec3 basePos = this.position();
+        Vec3 lookDir = this.getLookAngle();
+        double height = this.getBbHeight();
+
+        switch (boneName.toLowerCase()) {
+            case "rightarm":
+            case "right_arm":
+                Vec3 rightDir = new Vec3(-lookDir.z, 0, lookDir.x).normalize();
+                return basePos.add(rightDir.x * 0.6, height * 0.8, rightDir.z * 0.6);
+
+            case "leftarm":
+            case "left_arm":
+                Vec3 leftDir = new Vec3(lookDir.z, 0, -lookDir.x).normalize();
+                return basePos.add(leftDir.x * 0.6, height * 0.8, leftDir.z * 0.6);
+
+            case "sword":
+            case "weapon":
+            case "greatsword":
+                return basePos.add(lookDir.x * 2.0, height * 0.8, lookDir.z * 2.0);
+
+            case "head":
+                return basePos.add(0, height * 0.9, 0);
+
+            case "body":
+            case "chest":
+                return basePos.add(0, height * 0.6, 0);
+
+            case "hurtbox":
+            default:
+                return basePos.add(0, height * 0.5, 0);
+        }
+    }
+
+    /**
+     * Включает синхронизацию костей (вызывается при начале атаки)
+     */
+    public void startAttack() {
+        this.isAttacking = true;
+
+        // НОВОЕ: Синхронизируем состояние с клиентом
+        this.entityData.set(IS_ATTACKING, true);
+
+        String side = this.level().isClientSide ? "CLIENT" : "SERVER";
+        LOGGER.info("[BoneSync-{}] Started attack mode for entity {}", side, this.getId());
+    }
+
+    /**
+     * Отключает синхронизацию костей (вызывается при окончании атаки)
+     */
+    public void stopAttack() {
+        this.isAttacking = false;
+
+        // НОВОЕ: Синхронизируем состояние с клиентом
+        this.entityData.set(IS_ATTACKING, false);
+
+        this.lastKnownBonePositions.clear();
+
+        // Очищаем коллайдеры костей через рефлексию (избегаем серверных импортов)
+        if (serverBoneColliderManager != null && !this.level().isClientSide) {
+            try {
+                serverBoneColliderManager.getClass().getMethod("cleanup").invoke(serverBoneColliderManager);
+            } catch (Exception e) {
+                LOGGER.error("Error cleaning up bone colliders: {}", e.getMessage());
+            }
+        }
+
+        String side = this.level().isClientSide ? "CLIENT" : "SERVER";
+        LOGGER.info("[BoneSync-{}] Stopped attack mode for entity {}", side, this.getId());
+    }
+
+    /**
+     * Проверяет, находится ли моб в режиме атаки
+     */
+    public boolean isAttacking() {
+        // ИЗМЕНЕНО: Берем состояние из синхронизированных данных
+        if (this.level().isClientSide) {
+            // На клиенте используем синхронизированное состояние
+            return this.entityData.get(IS_ATTACKING);
+        } else {
+            // На сервере используем локальное состояние
+            return this.isAttacking;
+        }
+    }
+
+    /**
+     * Получает список всех синхронизированных костей
+     */
+    public List<String> getAvailableBoneNames() {
+        List<String> boneNames = new ArrayList<>(lastKnownBonePositions.keySet());
+
+        // Добавляем виртуальные кости как fallback
+        if (!boneNames.contains("rightArm")) boneNames.add("rightArm");
+        if (!boneNames.contains("leftArm")) boneNames.add("leftArm");
+        if (!boneNames.contains("sword")) boneNames.add("sword");
+        if (!boneNames.contains("weapon")) boneNames.add("weapon");
+        if (!boneNames.contains("greatsword")) boneNames.add("greatsword");
+        if (!boneNames.contains("head")) boneNames.add("head");
+        if (!boneNames.contains("body")) boneNames.add("body");
+        if (!boneNames.contains("hurtbox")) boneNames.add("hurtbox");
+
+        return boneNames;
+    }
+
+    // === МЕТОДЫ ДЛЯ СЕРВЕРНОГО МЕНЕДЖЕРА КОЛЛАЙДЕРОВ ===
+
+    /**
+     * Получает серверный менеджер коллайдеров костей (только на сервере)
+     */
+    public Object getServerBoneColliderManager() {
+        return serverBoneColliderManager;
+    }
+
+    /**
+     * Устанавливает серверный менеджер коллайдеров костей (только на сервере)
+     */
+    public void setServerBoneColliderManager(Object boneColliderManager) {
+        this.serverBoneColliderManager = boneColliderManager;
+    }
+
     public void clearTreeAnimation() {
         this.hasTreeAnimation = false;
-        // НЕ очищаем currentAnimation - просто сбрасываем флаг
-        System.out.println("[CustomMobEntity] Cleared tree animation flag for entity " + this.getId());
+        LOGGER.debug("[CustomMobEntity] Cleared tree animation flag for entity {}", this.getId());
     }
 
     @Override
@@ -83,6 +265,7 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
     protected void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(MOB_ID, "");
+        this.entityData.define(IS_ATTACKING, false); // НОВОЕ
     }
 
     public void setMobId(String mobId) {
@@ -100,12 +283,10 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
     public void setMobData(MobData mobData) {
         this.mobData = mobData;
 
-        // Применяем атрибуты
         if (mobData != null && mobData.getAttributes() != null) {
             applyMobAttributes(mobData);
         }
 
-        // Синхронизируем с клиентами
         syncMobDataWithClient();
     }
 
@@ -130,7 +311,6 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
         }
     }
 
-    // Простое воспроизведение анимации
     public void playAnimation(String actionKey) {
         if (mobData != null && mobData.getAnimations() != null) {
             AnimationMapping mapping = mobData.getAnimations().get(actionKey);
@@ -147,10 +327,8 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
         this.isLoopingAnimation = loop;
         this.animationSpeed = speed;
 
-        // Помечаем, что есть анимация из дерева поведения
-        hasTreeAnimation = !loop; // Только незацикленные анимации блокируют базовые
+        hasTreeAnimation = !loop;
 
-        // Синхронизируем с клиентами
         if (!this.level().isClientSide) {
             NetworkManager.INSTANCE.send(
                     PacketDistributor.TRACKING_ENTITY.with(() -> this),
@@ -183,7 +361,7 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
                         RawAnimation animation = RawAnimation.begin().then(currentAnimation, loopType);
                         return event.setAndContinue(animation);
                     } catch (Exception e) {
-                        System.err.println("Error in animation controller: " + e.getMessage());
+                        LOGGER.error("Error in animation controller: {}", e.getMessage());
                         return PlayState.STOP;
                     }
                 });
@@ -202,7 +380,6 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
         super.addAdditionalSaveData(compound);
         compound.putString("MobId", this.getMobId());
 
-        // Сохраняем текущую анимацию
         if (!currentAnimation.isEmpty()) {
             compound.putString("CurrentAnimation", currentAnimation);
             compound.putBoolean("AnimationLoop", isLoopingAnimation);
@@ -215,7 +392,6 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
         super.readAdditionalSaveData(compound);
         this.setMobId(compound.getString("MobId"));
 
-        // Загружаем текущую анимацию
         if (compound.contains("CurrentAnimation")) {
             currentAnimation = compound.getString("CurrentAnimation");
             isLoopingAnimation = compound.getBoolean("AnimationLoop");
@@ -223,22 +399,16 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
         }
     }
 
-    // В методе tick() используем правильный метод для получения скорости:
     @Override
     public void tick() {
         super.tick();
 
-        // Загружаем данные моба если их нет
         if (mobData == null && !this.getMobId().isEmpty()) {
             loadMobDataFromCache();
         }
 
-        // ВСЕГДА проигрываем базовые анимации на сервере
         if (!this.level().isClientSide && mobData != null && !this.isDeadOrDying()) {
-
-            // Если нет активной анимации из дерева - играем базовые
             if (!hasTreeAnimation) {
-                // Проверяем навигацию вместо скорости для более точного определения
                 if (this.getNavigation().isInProgress() && this.getNavigation().getTargetPos() != null) {
                     playBaseAnimation("walk");
                 } else {
@@ -257,20 +427,14 @@ public class CustomMobEntity extends PathfinderMob implements GeoEntity {
         }
     }
 
-    /**
-     * Загружает данные моба из кэша (на клиенте) или конфигурации (на сервере)
-     */
     private void loadMobDataFromCache() {
         if (this.level().isClientSide) {
-            // На клиенте загружаем из кэша
             DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
                 MobData cachedData = ClientMobDataCache.getMobData(this.getMobId());
                 if (cachedData != null) {
                     this.setMobData(cachedData);
                 }
             });
-        } else {
-            // На сервере загружаем из конфигурации (это делается в MobSpawnEventHandler)
         }
     }
 

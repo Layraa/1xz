@@ -1,0 +1,32 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+issueTrackerURL="https://github.com/yourusername/custommobsforge/issues"
+
+[[mods]]
+modId="custommobsforge_client"
+version="1.0.0"
+displayName="CustomMobsForge Client"
+description="Client module for CustomMobsForge mod."
+authors="YourName"
+
+[[dependencies.custommobsforge_client]]
+modId="forge"
+mandatory=true
+versionRange="[47,)"
+ordering="NONE"
+side="CLIENT"
+
+[[dependencies.custommobsforge_client]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1]"
+ordering="NONE"
+side="CLIENT"
+
+[[dependencies.custommobsforge_client]]
+modId="custommobsforge_common"
+mandatory=true
+versionRange="[1.0.0,)"
+ordering="AFTER"
+side="BOTH"
