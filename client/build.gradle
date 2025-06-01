@@ -1,0 +1,99 @@
+apply plugin: 'java'
+apply plugin: 'net.minecraftforge.gradle'
+
+// Настройка Minecraft
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.console.level', 'debug'
+
+            // Добавление JVM-аргументов для JavaFX
+            jvmArgs = [
+                    '--add-exports=java.base/sun.security.util=ALL-UNNAMED',
+                    '--add-exports=jdk.naming.dns/com.sun.jndi.dns=java.naming',
+                    '--add-opens=java.base/java.util.jar=ALL-UNNAMED',
+                    '--add-modules=javafx.controls,javafx.fxml,javafx.graphics,javafx.base,javafx.swing'
+            ]
+
+            mods {
+                custommobsforge {
+                    source sourceSets.main
+                    source project(':common').sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
+    maven { url 'https://maven.azuredoom.com/mods' }
+    maven { url 'https://maven.minecraftforge.net' }
+    maven { url 'https://repo1.maven.org/maven2' } // Для JFoenix и ControlsFX
+}
+
+def javafxPlatform = "win"
+if (System.getProperty('os.name').toLowerCase().contains('mac')) {
+    javafxPlatform = "mac"
+} else if (System.getProperty('os.name').toLowerCase().contains('linux')) {
+    javafxPlatform = "linux"
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:1.20.1-47.4.0"
+    implementation project(':common')
+
+    // AzureLib для анимаций
+    implementation fg.deobf("mod.azure.azurelib:azurelib-forge-1.20.1:1.0.29")
+
+    // JavaFX зависимости с учетом платформы
+    implementation "org.openjfx:javafx-base:17.0.2:${javafxPlatform}"
+    implementation "org.openjfx:javafx-controls:17.0.2:${javafxPlatform}"
+    implementation "org.openjfx:javafx-fxml:17.0.2:${javafxPlatform}"
+    implementation "org.openjfx:javafx-graphics:17.0.2:${javafxPlatform}"
+    implementation 'org.json:json:20230227'
+    implementation "org.openjfx:javafx-swing:17.0.2:${javafxPlatform}"
+
+    // JFoenix для Material Design
+    implementation 'com.jfoenix:jfoenix:9.0.10'
+
+    // ControlsFX для дополнительных компонентов
+    implementation 'org.controlsfx:controlsfx:11.1.2'
+
+    // FontAwesomeFX для иконок
+    implementation 'de.jensd:fontawesomefx-controls:9.1.2'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'com.custommobsforge.custommobsforge.client.CustomMobsForgeClient'
+    }
+
+    // Включаем зависимости в JAR
+    from {
+        configurations.runtimeClasspath
+                .filter { it.name.startsWith("javafx") || it.name.contains("jfoenix") ||
+                        it.name.contains("controlsfx") || it.name.contains("fontawesomefx") ||
+                        it.name.contains("json") }  // Добавлено включение json
+                .collect { it.isDirectory() ? it : zipTree(it) }
+    }
+
+    // Исключаем дубликаты в JAR
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+processResources {
+    // Обработка ресурсов
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand 'version': project.version
+    }
+}
+
+task printDependencies {
+    doLast {
+        println "Client compileClasspath: ${configurations.compileClasspath.files}"
+    }
+}
