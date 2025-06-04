@@ -1,0 +1,463 @@
+/* Основные цвета */
+.root {
+    -fx-background-color: #393939;
+}
+
+/* Стили для TabPane */
+.tab-pane {
+    -fx-tab-max-height: 30px;
+}
+
+.tab-pane .tab-header-area .tab-header-background {
+    -fx-background-color: #25273D;
+}
+
+.tab-pane .tab {
+    -fx-background-color: #33364F;
+    -fx-pref-width: 150px;
+}
+
+.tab-pane .tab:selected {
+    -fx-background-color: #4A90E2;
+}
+
+.tab-pane .tab-label {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+/* Стили для панелей управления */
+.control-panel {
+    -fx-background-color: #2B2B2B;
+    -fx-padding: 5 10 5 10;
+}
+
+/* Стили кнопок */
+.control-button {
+    -fx-background-color: #3A3A3A;
+    -fx-text-fill: #E0E0E0;
+    -fx-background-radius: 3;
+    -fx-cursor: hand;
+}
+
+.control-button:hover {
+    -fx-background-color: #4a4a4a;
+    -fx-effect: dropshadow(three-pass-box, rgba(100, 100, 100, 0.7), 3, 0, 0, 0);
+}
+
+.add-button {
+    -fx-background-color: #4381C1;
+    -fx-text-fill: #EBEBEB;
+    -fx-background-radius: 3;
+    -fx-cursor: hand;
+}
+
+.add-button:hover {
+    -fx-background-color: #4A90E2;
+    -fx-effect: dropshadow(three-pass-box, rgba(74, 144, 226, 0.7), 3, 0, 0, 0);
+}
+
+/* Поля ввода */
+.input-field {
+    -fx-background-color: #737373;
+    -fx-text-fill: #121212;
+    -fx-prompt-text-fill: #363636;
+    -fx-background-radius: 3;
+}
+
+.input-field:focused {
+    -fx-background-color: #8a8a8a;
+    -fx-effect: dropshadow(three-pass-box, rgba(74, 144, 226, 0.5), 3, 0, 0, 0);
+}
+
+/* Стили для базовых настроек */
+.mob-settings {
+    -fx-background-color: #212121;
+    -fx-background-radius: 10px;
+}
+
+.field-container {
+    -fx-background-color: #33364F;
+    -fx-background-radius: 5px;
+    -fx-padding: 10px;
+}
+
+.label {
+    -fx-text-fill: #E0E0E0;
+    -fx-font-size: 14px;
+}
+
+.header-label {
+    -fx-text-fill: #E0E0E0;
+    -fx-font-weight: bold;
+    -fx-font-size: 18px;
+}
+
+/* Стили для редактора поведенческих деревьев */
+.behavior-tree-pane {
+    -fx-background-color: transparent;
+}
+
+/* Стили узлов */
+.node-view {
+    -fx-background-color: rgba(90, 90, 90, 0.75);
+    -fx-border-color: #2B2B2B;
+    -fx-border-width: 1;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.4), 5, 0, 0, 0);
+    -fx-transition: all 0.2s ease;
+}
+
+.node-view:hover {
+    -fx-effect: dropshadow(three-pass-box, rgba(100, 100, 100, 0.5), 8, 0, 0, 0);
+}
+
+.node-view-selected {
+    -fx-border-color: #4380D0;
+    -fx-border-width: 2;
+    -fx-effect: dropshadow(three-pass-box, rgba(30, 144, 255, 0.5), 10, 0, 0, 0);
+}
+
+/* Заголовок с фиксированной непрозрачностью */
+.node-header {
+    -fx-background-radius: 8 8 0 0;
+    -fx-opacity: 1.0; /* Убираем общую прозрачность, чтобы текст был чётким */
+}
+
+/* Текст заголовка - такой же как в узле */
+.node-title {
+    -fx-text-fill: #121212;
+    -fx-font-weight: normal;
+    -fx-font-size: 12px;
+}
+
+.node-content {
+    -fx-padding: 8;
+}
+
+/* Стили для типов узлов - прозрачность только в цвете фона */
+/* Узлы действий */
+.node-header-AttackNode { -fx-background-color: rgba(155, 39, 40, 0.6); }
+.node-header-PlayAnimationNode { -fx-background-color: rgba(71, 155, 39, 0.6); }
+.node-header-FollowNode { -fx-background-color: rgba(85, 170, 255, 0.6); }
+.node-header-FleeNode { -fx-background-color: rgba(255, 170, 85, 0.6); }
+
+/* Композитные узлы */
+.node-header-SequenceNode { -fx-background-color: rgba(131, 39, 170, 0.6); }
+.node-header-SelectorNode { -fx-background-color: rgba(39, 39, 162, 0.6); }
+.node-header-ParallelNode { -fx-background-color: rgba(85, 255, 170, 0.6); }
+.node-header-PrioritySelectorNode { -fx-background-color: rgba(162, 39, 131, 0.6); }
+.node-header-WeightedSelectorNode { -fx-background-color: rgba(255, 170, 85, 0.6); }
+
+/* Узлы проверок и поиска */
+.node-header-TargetPlayerNode { -fx-background-color: rgba(39, 170, 255, 0.6); }
+.node-header-HasTargetNode { -fx-background-color: rgba(170, 255, 39, 0.6); }
+.node-header-HealthCheckNode { -fx-background-color: rgba(255, 85, 170, 0.6); }
+
+/* События */
+.node-header-OnSpawnNode { -fx-background-color: rgba(85, 255, 85, 0.6); }
+.node-header-OnDeathNode { -fx-background-color: rgba(255, 85, 85, 0.6); }
+.node-header-OnDamageNode { -fx-background-color: rgba(255, 170, 85, 0.6); }
+
+/* Эффекты */
+.node-header-SpawnParticleNode { -fx-background-color: rgba(255, 85, 170, 0.6); }
+.node-header-DisplayTitleNode { -fx-background-color: rgba(255, 170, 170, 0.6); }
+.node-header-PlaySoundNode { -fx-background-color: rgba(85, 170, 255, 0.6); }
+
+/* Утилиты */
+.node-header-TimerNode { -fx-background-color: rgba(155, 153, 39, 0.6); }
+.node-header-ScriptNode { -fx-background-color: rgba(170, 170, 170, 0.6); }
+
+/* Для очень темных заголовков нужно светлый текст */
+.node-header-SelectorNode .node-title,
+.node-header-AttackNode .node-title,
+.node-header-PrioritySelectorNode .node-title {
+    -fx-text-fill: #EBEBEB; /* Светлый текст для тёмных заголовков */
+}
+
+/* Стили для соединителей */
+.connection-path {
+    -fx-stroke: linear-gradient(to bottom, rgba(220, 220, 220, 0.9), rgba(180, 180, 180, 0.7));
+    -fx-stroke-width: 2.5;
+    -fx-stroke-line-cap: round;
+}
+
+.connection-path:hover {
+    -fx-stroke: rgba(255, 255, 255, 0.9);
+    -fx-stroke-width: 3;
+    -fx-effect: dropshadow(gaussian, rgba(255, 255, 255, 0.4), 5, 0, 0, 0);
+}
+
+.connection-path-selected {
+    -fx-stroke: rgb(100, 200, 255);
+    -fx-stroke-width: 3.5;
+    -fx-effect: dropshadow(three-pass-box, rgba(100, 200, 255, 0.7), 5, 0, 0, 0);
+}
+
+/* Стили для пинов */
+.pin {
+    -fx-fill: rgb(100, 100, 100);
+    -fx-stroke: rgb(200, 200, 200);
+    -fx-stroke-width: 1.5;
+    -fx-cursor: hand;
+}
+
+.pin:hover {
+    -fx-stroke-width: 2;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 255, 255, 0.6), 4, 0, 0, 0);
+}
+
+.pin-connected {
+    -fx-fill: rgb(255, 255, 100);
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 255, 0, 0.5), 3, 0, 0, 0);
+}
+
+.pin-highlighted {
+    -fx-fill: rgb(255, 255, 100);
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 255, 0, 0.7), 6, 0, 0, 0);
+}
+
+.pin-error {
+    -fx-fill: rgb(255, 0, 0);
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 0, 0, 0.7), 6, 0, 0, 0);
+}
+
+/* Индикатор активности узла */
+.node-active-indicator {
+    -fx-fill: #5aff5a;
+    -fx-effect: dropshadow(gaussian, #5aff5a, 8, 0, 0, 0);
+    -fx-opacity: 0.8;
+}
+
+/* Стили для временного соединения */
+.temp-connection {
+    -fx-stroke: linear-gradient(to bottom, rgba(150, 255, 150, 0.9), rgba(100, 200, 100, 0.7));
+    -fx-stroke-width: 3;
+    -fx-stroke-line-cap: round;
+    -fx-stroke-dash-array: 8 8;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 255, 0, 0.5), 3, 0, 0, 0);
+}
+
+/* Стили для параметров узлов */
+.parameter-field {
+    -fx-background-color: #737373;
+    -fx-text-fill: #121212;
+    -fx-prompt-text-fill: #363636;
+    -fx-background-radius: 3;
+}
+
+.parameter-field:focused {
+    -fx-background-color: #8a8a8a;
+    -fx-effect: dropshadow(three-pass-box, rgba(74, 144, 226, 0.5), 3, 0, 0, 0);
+}
+
+.parameter-label {
+    -fx-text-fill: #121212;
+    -fx-font-size: 11px;
+    -fx-font-weight: normal;
+}
+
+/* Дополнительные стили для специальных элементов */
+.help-label {
+    -fx-text-fill: #AAAAAA;
+    -fx-font-size: 10px;
+    -fx-font-style: italic;
+}
+
+.weights-container {
+    -fx-background-color: rgba(50, 50, 50, 0.3);
+    -fx-background-radius: 5px;
+    -fx-border-color: #404040;
+    -fx-border-radius: 5px;
+    -fx-border-width: 1px;
+}
+
+.info-label {
+    -fx-text-fill: #CCCCCC;
+    -fx-font-size: 11px;
+    -fx-font-style: italic;
+}
+
+/* Чекбоксы */
+.custom-checkbox {
+    -fx-text-fill: #E0E0E0;
+}
+
+.custom-checkbox .box {
+    -fx-background-color: #737373;
+    -fx-border-color: #404040;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+}
+
+.custom-checkbox:selected .box {
+    -fx-background-color: #4381C1;
+    -fx-border-color: #4A90E2;
+}
+
+.custom-checkbox .mark {
+    -fx-background-color: white;
+}
+
+/* Слайдеры */
+.custom-slider .track {
+    -fx-background-color: #5a5a5a;
+    -fx-background-radius: 5px;
+    -fx-pref-height: 6px;
+}
+
+.custom-slider .thumb {
+    -fx-background-color: #737373;
+    -fx-background-radius: 50%;
+    -fx-pref-width: 12px;
+    -fx-pref-height: 12px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.3), 2, 0, 0, 0);
+}
+
+.custom-slider:hover .thumb {
+    -fx-background-color: #8a8a8a;
+    -fx-effect: dropshadow(three-pass-box, rgba(100, 100, 100, 0.7), 5, 0, 0, 0);
+}
+
+/* Стили для уведомлений */
+.notification {
+    -fx-background-color: #2B2B2B;
+    -fx-text-fill: #D0D0D0;
+    -fx-padding: 8px;
+    -fx-background-radius: 3px;
+    -fx-border-color: #404040;
+    -fx-border-width: 1;
+    -fx-border-radius: 3px;
+    -fx-font-size: 12px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.5), 5, 0, 0, 0);
+}
+
+/* Стили для контекстного меню */
+.context-menu {
+    -fx-background-color: #2B2B2B;
+    -fx-background-radius: 5;
+    -fx-border-color: #4a4a4a;
+    -fx-border-radius: 5;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.4), 10, 0, 0, 0);
+}
+
+.menu-item {
+    -fx-background-color: transparent;
+    -fx-padding: 5 15;
+}
+
+.menu-item:hover {
+    -fx-background-color: #4381C1;
+}
+
+.menu-item .label {
+    -fx-text-fill: #D0D0D0;
+}
+
+.separator:horizontal .line {
+    -fx-border-color: #4a4a4a;
+    -fx-border-width: 0.5;
+}
+
+/* Стили для выпадающих списков */
+.combo-box {
+    -fx-background-color: #737373;
+    -fx-text-fill: #121212;
+    -fx-background-radius: 3;
+}
+
+.combo-box .list-cell {
+    -fx-background-color: #737373;
+    -fx-text-fill: #121212;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: #737373;
+    -fx-background-radius: 3;
+    -fx-border-color: #4a4a4a;
+    -fx-border-radius: 3;
+}
+
+.combo-box-popup .list-cell {
+    -fx-background-color: #737373;
+    -fx-text-fill: #121212;
+}
+
+.combo-box-popup .list-cell:hover {
+    -fx-background-color: #8a8a8a;
+}
+
+/* Стили для panels */
+.stats-pane {
+    -fx-background-color: #303030;
+    -fx-background-radius: 8px;
+    -fx-border-color: #404040;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+}
+
+.animations-pane {
+    -fx-background-color: #303030;
+    -fx-background-radius: 8px;
+    -fx-border-color: #404040;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+}
+
+/* Анимации и эффекты при взаимодействии */
+.node-view, .pin, .connection-path, .control-button, .add-button,
+.input-field, .parameter-field, .custom-slider .thumb {
+    -fx-transition: all 0.15s ease;
+}
+
+.info-button {
+    -fx-background-color: #555555;
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+    -fx-background-radius: 9px;
+    -fx-font-size: 10px;
+    -fx-padding: 0;
+    -fx-focus-traversable: false;
+}
+
+.info-button:hover {
+    -fx-background-color: #6c9cd9;
+}
+
+.node-tooltip {
+    -fx-background-color: #303030;
+    -fx-text-fill: #e0e0e0;
+    -fx-font-size: 12px;
+    -fx-padding: 10px;
+    -fx-border-color: #505050;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 5, 0, 0, 0);
+}
+
+.expand-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #cccccc;
+    -fx-font-family: "System";
+    -fx-font-size: 12px;
+    -fx-padding: 0;
+    -fx-focus-traversable: false;
+}
+
+.expand-button:hover {
+    -fx-text-fill: white;
+}
+
+.expand-button.expanded {
+    -fx-text-fill: #cccccc;
+}
+
+.expand-button.collapsed {
+    -fx-text-fill: #cccccc;
+}
+
+.tooltip {
+    -fx-show-delay: 100ms;
+    -fx-show-duration: 30000ms;
+    -fx-hide-delay: 200ms;
+}
