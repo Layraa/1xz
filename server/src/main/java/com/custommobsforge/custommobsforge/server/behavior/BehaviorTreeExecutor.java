@@ -54,6 +54,11 @@ public class BehaviorTreeExecutor extends Goal {
     /**
      * Регистрирует исполнители для всех типов узлов
      */
+    // В методе registerNodeExecutors() класса BehaviorTreeExecutor замените старую регистрацию:
+
+    /**
+     * Регистрирует исполнители для всех типов узлов
+     */
     private void registerNodeExecutors() {
         // Основные узлы управления потоком
         nodeExecutors.put("sequencenode", new SequenceNodeExecutor());
@@ -62,9 +67,11 @@ public class BehaviorTreeExecutor extends Goal {
         nodeExecutors.put("weightedselectornode", new WeightedSelectorNodeExecutor());
         nodeExecutors.put("priorityselectornode", new PrioritySelectorNodeExecutor());
 
-        // Узлы действий
-        nodeExecutors.put("playanimationnode", new PlayAnimationNodeExecutor());
-        nodeExecutors.put("attacknode", new AttackNodeExecutor());
+        // ОБНОВЛЕНО: Новые исполнители узлов
+        nodeExecutors.put("playanimationnode", new PlayAnimationNodeExecutor()); // Обновленный под AzureLib 3.0
+        nodeExecutors.put("attacknode", new AttackNodeExecutor());                // Обновленный под Enhanced систему
+
+        // Остальные узлы действий
         nodeExecutors.put("follownode", new FollowNodeExecutor());
         nodeExecutors.put("targetplayernode", new TargetPlayerNodeExecutor());
         nodeExecutors.put("fleenode", new FleeNodeExecutor());
@@ -83,7 +90,7 @@ public class BehaviorTreeExecutor extends Goal {
         nodeExecutors.put("playsoundnode", new PlaySoundNodeExecutor());
         nodeExecutors.put("scriptnode", new ScriptNodeExecutor());
 
-        System.out.println("[BehaviorTreeExecutor] Registered " + nodeExecutors.size() + " node executors");
+        System.out.println("[BehaviorTreeExecutor] Registered " + nodeExecutors.size() + " node executors (Enhanced)");
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.custommobsforge.custommobsforge.server;
 
+import com.custommobsforge.custommobsforge.server.commands.DebugBonesCommand;
 import com.custommobsforge.custommobsforge.server.commands.ServerCommandRegistrationHandler;
 import com.custommobsforge.custommobsforge.server.event.MobSpawnEventHandler;
 import com.custommobsforge.custommobsforge.server.event.ServerSaveHandler;
@@ -34,9 +35,9 @@ public class ServerCustomMobsForge {
         });
     }
 
+    // В методе регистрации команд (обычно в главном классе мода или в событии ServerStartingEvent)
     @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event) {
-        // Инициализация компонентов при запуске сервера
-        System.out.println("ServerCustomMobsForge: Server starting");
+    public static void onServerStarting(ServerStartingEvent event) {
+        DebugBonesCommand.register(event.getServer().getCommands().getDispatcher());
     }
 }

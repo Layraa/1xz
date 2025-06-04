@@ -5,10 +5,11 @@ import com.custommobsforge.custommobsforge.server.animation.AnimationDurationCac
 import com.custommobsforge.custommobsforge.common.data.BehaviorNode;
 import com.custommobsforge.custommobsforge.common.entity.CustomMobEntity;
 import com.custommobsforge.custommobsforge.server.util.LogHelper;
+import mod.azure.azurelib.rewrite.animation.dispatch.command.AzCommand;
+import mod.azure.azurelib.rewrite.animation.play_behavior.AzPlayBehaviors;
 
 /**
- * Исполнитель узла воспроизведения анимации (SERVER SIDE ONLY)
- * Запускает анимацию и ждет ее завершения (только для незацикленных)
+ * Исполнитель узла воспроизведения анимации для AzureLib 3.0
  */
 public class PlayAnimationNodeExecutor implements NodeExecutor {
 
@@ -17,11 +18,6 @@ public class PlayAnimationNodeExecutor implements NodeExecutor {
         String nodeId = node.getId();
 
         LogHelper.info("[PlayAnimationNode] Execute called for node: {} on entity {}", nodeId, entity.getId());
-
-        // Добавим отладку состояния
-        LogHelper.info("[PlayAnimationNode] Current node status: {}, isRunning: {}",
-                executor.getNodeStatus(nodeId),
-                executor.isNodeRunning(nodeId));
 
         // Проверяем, запущен ли узел ранее
         if (executor.isNodeRunning(nodeId)) {
@@ -92,8 +88,8 @@ public class PlayAnimationNodeExecutor implements NodeExecutor {
             duration = estimateAnimationDuration(animationId);
         }
 
-        // Запускаем анимацию через entity
-        boolean animationSet = setAnimation(entity, animationId, finalLoop, speed, node);
+        // Запускаем анимацию через новую систему AzCommand
+        boolean animationSet = setAnimationWithAzCommand(entity, animationId, finalLoop, speed, node);
         if (!animationSet) {
             LogHelper.error("[PlayAnimationNode] Failed to set animation: '{}'", animationId);
             return BehaviorTreeExecutor.NodeStatus.FAILURE;
@@ -115,16 +111,7 @@ public class PlayAnimationNodeExecutor implements NodeExecutor {
         executor.getBlackboard().setValue(nodeId + ":completion_time", completionTime);
         executor.getBlackboard().setValue(nodeId + ":animation_name", animationId);
 
-        // Проверим, что сохранилось
-        Long savedTime = executor.getBlackboard().getValue(nodeId + ":completion_time", null);
-        LogHelper.info("[PlayAnimationNode] Verification - saved time: {}, original: {}",
-                savedTime, completionTime);
-
         executor.setNodeStatus(nodeId, BehaviorTreeExecutor.NodeStatus.RUNNING);
-
-        LogHelper.info("[PlayAnimationNode] Node status after setting RUNNING: {}, isRunning: {}",
-                executor.getNodeStatus(nodeId),
-                executor.isNodeRunning(nodeId));
 
         LogHelper.info("[PlayAnimationNode] Non-looped animation '{}' will complete in {} ms",
                 animationId, adjustedDuration);
@@ -132,9 +119,6 @@ public class PlayAnimationNodeExecutor implements NodeExecutor {
         return BehaviorTreeExecutor.NodeStatus.RUNNING;
     }
 
-    /**
-     * Проверяет завершение анимации
-     */
     /**
      * Проверяет завершение анимации
      */
@@ -152,22 +136,15 @@ public class PlayAnimationNodeExecutor implements NodeExecutor {
 
         long currentTime = System.currentTimeMillis();
         if (currentTime >= completionTime) {
-            // Анимация завершена - СРАЗУ переключаемся на базовую анимацию
+            // Анимация завершена - очищаем и переключаемся на базовую анимацию
             executor.getBlackboard().removeValue(nodeId + ":completion_time");
             executor.getBlackboard().removeValue(nodeId + ":animation_name");
             executor.setNodeStatus(nodeId, BehaviorTreeExecutor.NodeStatus.SUCCESS);
 
-            // ИСПРАВЛЕНИЕ: Сразу ставим базовую анимацию без очистки
+            // Очищаем флаг дерева анимации
             entity.clearTreeAnimation();
 
-            // Немедленно устанавливаем базовую анимацию
-            if (entity.getNavigation().isInProgress() && entity.getNavigation().getTargetPos() != null) {
-                entity.setAnimation("walk", true, 1.0f);
-            } else {
-                entity.setAnimation("idle", true, 1.0f);
-            }
-
-            LogHelper.info("[PlayAnimationNode] Animation '{}' completed, switched to base animation", animationName);
+            LogHelper.info("[PlayAnimationNode] Animation '{}' completed, cleared tree animation flag", animationName);
             return BehaviorTreeExecutor.NodeStatus.SUCCESS;
         }
 
@@ -211,32 +188,61 @@ public class PlayAnimationNodeExecutor implements NodeExecutor {
     }
 
     /**
-     * Устанавливает анимацию для сущности
+     * Устанавливает анимацию для сущности через новую систему AzCommand
      */
-    private boolean setAnimation(CustomMobEntity entity, String animationId, boolean loop, float speed, BehaviorNode node) {
-        if (entity.getMobData() != null && entity.getMobData().getAnimations() != null) {
-            // Проверяем стандартные анимации (IDLE, WALK, DEATH, SPAWN)
-            var animationMapping = entity.getMobData().getAnimations().get(animationId.toUpperCase());
-            if (animationMapping != null) {
-                LogHelper.info("[PlayAnimationNode] Using STANDARD animation mapping: {} -> {}",
-                        animationId, animationMapping.getAnimationName());
+    private boolean setAnimationWithAzCommand(CustomMobEntity entity, String animationId, boolean loop, float speed, BehaviorNode node) {
+        try {
+            // Сначала пробуем использовать стандартные анимации через entity
+            if (entity.getMobData() != null && entity.getMobData().getAnimations() != null) {
+                // Проверяем стандартные анимации (IDLE, WALK, DEATH, SPAWN)
+                var animationMapping = entity.getMobData().getAnimations().get(animationId.toUpperCase());
+                if (animationMapping != null) {
+                    LogHelper.info("[PlayAnimationNode] Using STANDARD animation mapping: {} -> {}",
+                            animationId, animationMapping.getAnimationName());
 
-                // Для стандартных анимаций используем параметры из маппинга, если не переопределены в узле
-                boolean finalLoop = node.getCustomParameters().containsKey("loop") ? loop : animationMapping.isLoop();
-                float finalSpeed = node.getCustomParameters().containsKey("speed") ? speed : animationMapping.getSpeed();
+                    // Для стандартных анимаций используем параметры из маппинга, если не переопределены в узле
+                    boolean finalLoop = node.getCustomParameters().containsKey("loop") ? loop : animationMapping.isLoop();
+                    float finalSpeed = node.getCustomParameters().containsKey("speed") ? speed : animationMapping.getSpeed();
 
-                entity.setAnimation(animationMapping.getAnimationName(), finalLoop, finalSpeed);
+                    // Используем встроенный метод entity
+                    entity.setAnimation(animationMapping.getAnimationName(), finalLoop, finalSpeed);
+                    return true;
+                }
+            }
+
+            // Для кастомных анимаций используем AzCommand напрямую
+            LogHelper.info("[PlayAnimationNode] Using CUSTOM animation via AzCommand: {} (loop: {}, speed: {})",
+                    animationId, loop, speed);
+
+            AzCommand animationCommand = AzCommand.create(
+                    "main_controller",
+                    animationId,
+                    loop ? AzPlayBehaviors.LOOP : AzPlayBehaviors.PLAY_ONCE
+            );
+
+            // Отправляем команду
+            animationCommand.sendForEntity(entity);
+
+            // Обновляем внутреннее состояние entity
+            entity.hasTreeAnimation = !loop;
+
+            LogHelper.info("[PlayAnimationNode] Successfully sent AzCommand for animation: {}", animationId);
+            return true;
+
+        } catch (Exception e) {
+            LogHelper.error("[PlayAnimationNode] Failed to send AzCommand for animation '{}': {}",
+                    animationId, e.getMessage());
+
+            // Fallback на старую систему
+            try {
+                entity.setAnimation(animationId, loop, speed);
+                LogHelper.info("[PlayAnimationNode] Used fallback method for animation: {}", animationId);
                 return true;
+            } catch (Exception fallbackError) {
+                LogHelper.error("[PlayAnimationNode] Fallback also failed: {}", fallbackError.getMessage());
+                return false;
             }
         }
-
-
-        // Используем как кастомную анимацию
-        LogHelper.info("[PlayAnimationNode] Using CUSTOM animation: {} (loop: {}, speed: {})",
-                animationId, loop, speed);
-        entity.setAnimation(animationId, loop, speed);
-        return true;
-
     }
 
     /**
@@ -264,5 +270,4 @@ public class PlayAnimationNodeExecutor implements NodeExecutor {
 
         return animationId;
     }
-
 }
